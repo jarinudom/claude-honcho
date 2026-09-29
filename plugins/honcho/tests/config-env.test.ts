@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { runInSandbox } from "./sandbox";
@@ -33,5 +33,28 @@ describe("HONCHO_SAVE_MESSAGES over a config file", () => {
     ["file saveMessages: true, env unset", { saveMessages: true }, {}, true],
   ])("%s", (_name, fileConfig, env, expected) => {
     expect(loadSaveMessages(fileConfig, env)).toBe(expected);
+  });
+
+  test("the env override is not written back to config.json", () => {
+    // Session setup calls saveConfig with the merged config. A runtime
+    // HONCHO_SAVE_MESSAGES=false must not become a durable host setting.
+    const home = mkdtempSync(join(tmpdir(), "honcho-home-"));
+    try {
+      mkdirSync(join(home, ".honcho"), { recursive: true });
+      const configPath = join(home, ".honcho", "config.json");
+      writeFileSync(configPath, JSON.stringify({ apiKey: "k", peerName: "t", saveMessages: true }));
+      runInSandbox(
+        home,
+        `import { setSessionForPath } from "./src/config.ts";
+         setSessionForPath("/tmp/project", "project-session");`,
+        { HONCHO_SAVE_MESSAGES: "false" },
+      );
+      const written = JSON.parse(readFileSync(configPath, "utf-8"));
+      expect(written.sessions["/tmp/project"]).toBe("project-session");
+      expect(written.saveMessages).toBe(true);
+      expect(written.hosts?.claude_code?.saveMessages).toBeUndefined();
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });
