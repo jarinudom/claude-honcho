@@ -589,6 +589,9 @@ function mergeWithEnvVars(config: HonchoCLAUDEConfig): HonchoCLAUDEConfig {
   if (process.env.HONCHO_LOGGING === "false") {
     config.logging = false;
   }
+  if (process.env.HONCHO_SAVE_MESSAGES === "false") {
+    config.saveMessages = false;
+  }
   if (process.env.HONCHO_SAVE_TOOL_USE !== undefined) {
     config.saveToolUse = process.env.HONCHO_SAVE_TOOL_USE === "true";
   }
